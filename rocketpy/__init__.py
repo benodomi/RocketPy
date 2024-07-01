@@ -1,4 +1,5 @@
 from .control import _Controller
+from .flightsoftware import FlightSoftware
 from .environment import Environment, EnvironmentAnalysis
 from .mathutils import (
     Function,

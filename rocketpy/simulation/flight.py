@@ -488,6 +488,7 @@ class Flight:
     def __init__(
         self,
         rocket,
+        flight_software,
         environment,
         rail_length,
         inclination=80.0,
@@ -586,6 +587,7 @@ class Flight:
         # Save arguments
         self.env = environment
         self.rocket = rocket
+        self.flight_software  = flight_software
         self.rail_length = rail_length
         if self.rail_length <= 0:
             raise ValueError("Rail length must be a positive value.")
@@ -671,6 +673,9 @@ class Flight:
                 phase.time_nodes.add_controllers(
                     self._controllers, phase.t, phase.time_bound
                 )
+                phase.time_nodes.add_flight_software(
+                    self.flight_software, phase.t, phase.time_bound
+                )
             # Add last time node to the time_nodes list
             phase.time_nodes.add_node(phase.time_bound, [], [])
             # Organize time nodes with sort() and merge()
@@ -699,8 +704,13 @@ class Flight:
                 for callback in node.callbacks:
                     callback(self)
 
+                self.flight_software.evaluate_fsw(self.t, self.y_sol)
+
                 for controller in node._controllers:
-                    controller(self.t, self.y_sol, self.solution)
+                    try:
+                        controller(self.t, self.y_sol, self.solution)
+                    except:
+                        pass
 
                 for parachute in node.parachutes:
                     # Calculate and save pressure signal
@@ -3388,6 +3398,19 @@ class Flight:
                     )
                 ]
                 self.list += controller_node_list
+
+        def add_flight_software(self, flight_software, t_init, t_end):
+            fsw_time_step = 1 / flight_software.sampling_rate
+
+            fsw_node_list = [
+                self.TimeNode(i * fsw_time_step, [], [flight_software])
+                for i in range(
+                    math.ceil(t_init / fsw_time_step),
+                    math.floor(t_end / fsw_time_step) + 1,
+                )
+            ]
+            self.list += fsw_node_list
+            print("Tinit",t_init,"tend",t_end)
 
         def sort(self):
             self.list.sort()
